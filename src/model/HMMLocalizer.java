@@ -16,24 +16,34 @@ public class HMMLocalizer implements EstimatorInterface {
 	private int[] position = new int[2];
 	private Random numGenerator;
 
-	private static final int[][] HEADINGS = new int[][] { { -1, 0 }, { 0, 1 }, { 1, 0 }, { 0, -1 } };
-
+	private static final int[][] HEADINGS = new int[][] { { -1,0 }, { 0,1 }, { 1,0 }, { 0,-1 } };
+	
+	private static final int[][] PRIMARY_RING = new int[][] { {-1,-1}, {-1, 0}, {-1, 1}, {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1} };
+	private static final int[][] SECONDARY_RING = new int[][] { {-2,-2}, {-2, -1}, {-2, 0}, {-2, 1}, {-2, 2}, {-1, 2}, {0, 2}, {1, 2}, {2, 2}, {2, 1}, {2, 0}, {2, -1}, {2, -2}, {1, -2}, {0, -2}, {-1, -2} };
+	
+	private double[][] observationMatrices;
+	
 	public HMMLocalizer(int rows, int cols, int heads) {
 		this.rows = rows;
 		this.cols = cols;
 		this.heads = heads;
 
-		numGenerator = new Random();
-		
 		position[0] = 0;
 		position[1] = 0;
 		
-		// Creates random initial heading
+		numGenerator = new Random();
 		heading = numGenerator.nextInt(4);
-
-		System.out.println("Initial Heading: " + heading);
+		
+		setupObservationMatrices();
+	}
+	
+	private void setupObservationMatrices() {
+		observationMatrices = new double[rows * cols + 1][rows * cols];
+		
+		
 	}
 
+	
 	@Override
 	public int getNumRows() {
 		return rows;
@@ -118,7 +128,7 @@ public class HMMLocalizer implements EstimatorInterface {
 		if (col == cols)
 			possibleHeadings.remove(new Integer(1)); // remove east
 		
-		System.out.println(String.format("Possible Headings for %d, %d: %s", row, col, possibleHeadings.toString()));
+//		System.out.println(String.format("Possible Headings for %d, %d: %s", row, col, possibleHeadings.toString()));
 		
 		return possibleHeadings;
 	}
@@ -130,8 +140,31 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public int[] getCurrentReading() {
-		// TODO Auto-generated method stub
-		return null;
+		numGenerator = new Random();
+		
+		ArrayList<int[]> possibleReadings = new ArrayList<int[]>();
+		
+		for (int i = 0; i < 4; i++) possibleReadings.add(position);
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j < PRIMARY_RING.length; j++) possibleReadings.add(PRIMARY_RING[j]);
+		}
+		for (int i = 0; i < SECONDARY_RING.length; i++) possibleReadings.add(SECONDARY_RING[i]);
+		
+		// possibleReadings List should be of size 36 now
+		
+		int randNum = numGenerator.nextInt(40);
+		
+		if (randNum >= 36) return null;
+		if (randNum < 4) return position;
+		
+		int[] ringCoordShift = possibleReadings.get(randNum);
+		int[] newRingCoord = new int[] { position[0] + ringCoordShift[0], position[1] + ringCoordShift[1] };
+		
+		if (inBounds(newRingCoord[0], newRingCoord[1])) {
+			return newRingCoord;
+		}
+		
+		return null;		
 	}
 
 	@Override
@@ -148,12 +181,10 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public double getTProb(int x, int y, int h, int nX, int nY, int nH) {
-		
 		int dx = nX - x;
 		int dy = nY - y;
 		
 		HashMap<Integer, Double> probMap = getProbMap(x, y, h);
-//		System.out.println("ProbMap: " + probMap.toString());
 		
 		if (probMap.containsKey(nH) && HEADINGS[nH][0] == dx && HEADINGS[nH][1] == dy) {
 				System.out.println("---T PROB ---");
@@ -164,6 +195,14 @@ public class HMMLocalizer implements EstimatorInterface {
 		}
 		
 		return 0.0;
+	}
+	
+	private boolean inBounds(int row, int col) {
+		return row >= 0 && row < rows && col >= 0 && col < cols;
+	}
+	
+	private boolean newLocationInBounds(int row, int col, int dRow, int dCol) {
+		return inBounds (row + dRow, col + dCol);
 	}
 
 }
