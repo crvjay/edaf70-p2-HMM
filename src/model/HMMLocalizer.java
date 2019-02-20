@@ -78,10 +78,11 @@ public class HMMLocalizer implements EstimatorInterface {
 		position[1] = position[1] + HEADINGS[heading][1];
 	}
 
+	
 	private HashMap<Integer, Double> getProbMap(int row, int col, int head) {
 		HashMap<Integer, Double> probMap = new HashMap<Integer, Double>();
 
-		for (Integer headingDir : getPossibleHeadings()) {
+		for (Integer headingDir : getPossibleHeadings(row, col)) {
 			probMap.put(headingDir, 0.0);
 		}
 
@@ -103,13 +104,10 @@ public class HMMLocalizer implements EstimatorInterface {
 
 		return probMap;
 	}
-
-	private ArrayList<Integer> getPossibleHeadings() {
+		
+	private ArrayList<Integer> getPossibleHeadings(int row, int col) {
 		ArrayList<Integer> possibleHeadings = new ArrayList<Integer>();
 		possibleHeadings.addAll(Arrays.asList(0, 1, 2, 3));
-
-		int row = position[0];
-		int col = position[1];
 
 		if (row == 0)
 			possibleHeadings.remove(new Integer(0)); // remove north
@@ -119,7 +117,9 @@ public class HMMLocalizer implements EstimatorInterface {
 			possibleHeadings.remove(new Integer(3)); // remove west
 		if (col == cols)
 			possibleHeadings.remove(new Integer(1)); // remove east
-
+		
+		System.out.println(String.format("Possible Headings for %d, %d: %s", row, col, possibleHeadings.toString()));
+		
 		return possibleHeadings;
 	}
 
@@ -148,11 +148,13 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public double getTProb(int x, int y, int h, int nX, int nY, int nH) {
+		
 		int dx = nX - x;
 		int dy = nY - y;
 		
 		HashMap<Integer, Double> probMap = getProbMap(x, y, h);
-
+//		System.out.println("ProbMap: " + probMap.toString());
+		
 		if (probMap.containsKey(nH) && HEADINGS[nH][0] == dx && HEADINGS[nH][1] == dy) {
 				System.out.println("---T PROB ---");
 				System.out.println(String.format("(x, y, h) -- (%d, %d, %d)", x, y, h));
