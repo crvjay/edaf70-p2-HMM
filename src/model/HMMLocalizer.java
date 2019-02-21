@@ -26,7 +26,7 @@ public class HMMLocalizer implements EstimatorInterface {
 	private HashMap<int[], double[][]> nothingMatrices;
 	
 	private double[][] transitionMatrix;
-	private double[][] hmmMatrix;
+	private double[] hmmMatrix;
 	
 	public HMMLocalizer(int rows, int cols, int heads) {
 		this.rows = rows;
@@ -66,19 +66,20 @@ public class HMMLocalizer implements EstimatorInterface {
 			}
 		}
 		
-		for (int[] key : observationMatrices.keySet()) {
-//			System.out.println(String.format("Matrix for (%d, %d)", key[0], key[1])); 
-			double[][] matrix = observationMatrices.get(key);
-//			for (int i = 0; i< matrix.length; i++) {
-//			    for (int j = 0; j < matrix[i].length; j++) {
-//			        System.out.print(matrix[i][j] + "  ");
-//			    }
-//			        System.out.println();
-//			}
-		}
+		// for (int[] key : observationMatrices.keySet()) {
+		// 	System.out.println(String.format("Matrix for (%d, %d)", key[0], key[1])); 
+		// 	double[][] matrix = observationMatrices.get(key);
+		// 	for (int i = 0; i< matrix.length; i++) {
+		// 	    for (int j = 0; j < matrix[i].length; j++) {
+		// 	        System.out.print(matrix[i][j] + "  ");
+		// 	    }
+		// 	        System.out.println();
+		// 	}
+		// }
 	}
 	
 	private void initializeHMMMatrix() {
+		hmmMatrix = new double[rows * cols * heads];
 	}
 	
 	private void initializeTransitionMatrix() {
@@ -141,10 +142,9 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public void update() {
-
 		System.out.println("Updating");
 		updateHeadingAndPosition();
-
+		updateHmmMatrix();
 	}
 
 	private void updateHeadingAndPosition() {
@@ -157,18 +157,24 @@ public class HMMLocalizer implements EstimatorInterface {
 				headingsToChoose.add(headingVal);
 			}
 		}
-
+		
 		numGenerator = new Random();
 		int nextHeadingIndex = numGenerator.nextInt(headingsToChoose.size());
 
 		int nextHeading = headingsToChoose.get(nextHeadingIndex);
 		heading = nextHeading;
-
+		
 		position[0] = position[0] + HEADINGS[heading][0];
 		position[1] = position[1] + HEADINGS[heading][1];
+		
+		System.out.println(String.format("New Position: (%d, %d)", position[0], position[1]));
 	}
 
 	
+	private void updateHmmMatrix() {
+		
+	}
+
 	private HashMap<Integer, Double> getProbMap(int row, int col, int head) {
 		HashMap<Integer, Double> probMap = new HashMap<Integer, Double>();
 
@@ -201,11 +207,11 @@ public class HMMLocalizer implements EstimatorInterface {
 
 		if (row == 0)
 			possibleHeadings.remove(new Integer(0)); // remove north
-		if (row == rows)
+		if (row == rows - 1)
 			possibleHeadings.remove(new Integer(2)); // remove south
 		if (col == 0)
 			possibleHeadings.remove(new Integer(3)); // remove west
-		if (col == cols)
+		if (col == cols - 1)
 			possibleHeadings.remove(new Integer(1)); // remove east
 		
 //		System.out.println(String.format("Possible Headings for %d, %d: %s", row, col, possibleHeadings.toString()));
@@ -249,7 +255,8 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public double getCurrentProb(int x, int y) {
-		return hmmMatrix[x][y];
+		return 0.0;
+//		return hmmMatrix[x][y];
 	}
 
 	@Override
