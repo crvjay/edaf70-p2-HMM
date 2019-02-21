@@ -15,7 +15,8 @@ public class HMMLocalizer implements EstimatorInterface {
 	private int heading;
 	private int[] position = new int[2];
 	private Random numGenerator;
-
+	
+	// North, East, South, West
 	private static final int[][] HEADINGS = new int[][] { { -1,0 }, { 0,1 }, { 1,0 }, { 0,-1 } };
 	
 	private static final int[][] PRIMARY_RING = new int[][] { {-1,-1}, {-1, 0}, {-1, 1}, {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1} };
@@ -23,6 +24,9 @@ public class HMMLocalizer implements EstimatorInterface {
 	
 	private HashMap<int[], double[][]> observationMatrices;
 	private HashMap<int[], double[][]> nothingMatrices;
+	
+	private double[][] transitionMatrix;
+	private double[][] hmmMatrix;
 	
 	public HMMLocalizer(int rows, int cols, int heads) {
 		this.rows = rows;
@@ -36,7 +40,8 @@ public class HMMLocalizer implements EstimatorInterface {
 		heading = numGenerator.nextInt(4);
 		
 		initializeObservationMatrices();
-		initializeNothingMatrices();
+		initializeHMMMatrix();
+		initializeTransitionMatrix();
 	}
 	
 	private void initializeObservationMatrices() {
@@ -62,18 +67,61 @@ public class HMMLocalizer implements EstimatorInterface {
 		}
 		
 		for (int[] key : observationMatrices.keySet()) {
-			System.out.println(String.format("Matrix for (%d, %d)", key[0], key[1])); 
+//			System.out.println(String.format("Matrix for (%d, %d)", key[0], key[1])); 
 			double[][] matrix = observationMatrices.get(key);
-			for (int i = 0; i< matrix.length; i++) {
-			    for (int j = 0; j < matrix[i].length; j++) {
-			        System.out.print(matrix[i][j] + "  ");
-			    }
-			        System.out.println();
-			}
+//			for (int i = 0; i< matrix.length; i++) {
+//			    for (int j = 0; j < matrix[i].length; j++) {
+//			        System.out.print(matrix[i][j] + "  ");
+//			    }
+//			        System.out.println();
+//			}
 		}
 	}
 	
-	private void initializeNothingMatrices() {
+	private void initializeHMMMatrix() {
+	}
+	
+	private void initializeTransitionMatrix() {
+		transitionMatrix = new double[rows * cols * heads][rows * cols * heads];
+
+		for (int i = 0; i < transitionMatrix.length; i++) {
+			int[] iVals = getValsFromIndex(i);
+//			System.out.println("Index " + i + ": "+ Arrays.toString(iVals));
+			for (int j = 0; j < transitionMatrix[i].length; j++) {
+				int[] jVals = getValsFromIndex(j);
+				transitionMatrix[i][j] = getTProb(iVals[0], iVals[1], iVals[2], jVals[0], jVals[1], jVals[2]);
+			}
+		}
+		
+		printMatrix(transitionMatrix);
+	}
+	
+	private void printMatrix(double[][] array) {
+		for (int x = 0; x < array.length; x++) {
+			for (int y = 0; y < array[x].length; y++) {
+				System.out.print(array[x][y] + " ");
+			}
+			System.out.println();
+		}
+	}
+	
+//	private int getIndexFromRowColHead(int row, int col, int head) {
+//		int start = row * (rows * heads);
+//		start += col * heads;
+//		start += head;
+//		return start;	
+//	}
+//	
+	private int[] getValsFromIndex(int index) {
+		int head = index % heads;
+		index -= head;
+		
+		int col = (index % (rows * heads)) / heads;
+		index -= (col * heads);
+		
+		int row = index / rows;
+		
+		return new int[] {row, col, head};
 	}
 
 	@Override
@@ -201,8 +249,7 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public double getCurrentProb(int x, int y) {
-		// TODO Auto-generated method stub
-		return 0;
+		return hmmMatrix[x][y];
 	}
 
 	@Override
@@ -225,10 +272,10 @@ public class HMMLocalizer implements EstimatorInterface {
 		HashMap<Integer, Double> probMap = getProbMap(x, y, h);
 		
 		if (probMap.containsKey(nH) && HEADINGS[nH][0] == dx && HEADINGS[nH][1] == dy) {
-				System.out.println("---T PROB ---");
-				System.out.println(String.format("(x, y, h) -- (%d, %d, %d)", x, y, h));
-				System.out.println(String.format("(nX, nY, nH) -- (%d, %d, %d)", nX, nY, nH));		
-				System.out.println("Prob Map: " + probMap.toString());
+//				System.out.println("---T PROB ---");
+//				System.out.println(String.format("(x, y, h) -- (%d, %d, %d)", x, y, h));
+//				System.out.println(String.format("(nX, nY, nH) -- (%d, %d, %d)", nX, nY, nH));		
+//				System.out.println("Prob Map: " + probMap.toString());
 				return probMap.get(nH);
 		}
 		
