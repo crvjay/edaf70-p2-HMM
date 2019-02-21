@@ -21,7 +21,7 @@ public class HMMLocalizer implements EstimatorInterface {
 	private static final int[][] PRIMARY_RING = new int[][] { {-1,-1}, {-1, 0}, {-1, 1}, {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1} };
 	private static final int[][] SECONDARY_RING = new int[][] { {-2,-2}, {-2, -1}, {-2, 0}, {-2, 1}, {-2, 2}, {-1, 2}, {0, 2}, {1, 2}, {2, 2}, {2, 1}, {2, 0}, {2, -1}, {2, -2}, {1, -2}, {0, -2}, {-1, -2} };
 	
-	private double[][] observationMatrices;
+	private HashMap<int[], double[][]> observationMatrices;
 	
 	public HMMLocalizer(int rows, int cols, int heads) {
 		this.rows = rows;
@@ -34,15 +34,45 @@ public class HMMLocalizer implements EstimatorInterface {
 		numGenerator = new Random();
 		heading = numGenerator.nextInt(4);
 		
-		setupObservationMatrices();
+		initializeObservationMatrices();
 	}
 	
-	private void setupObservationMatrices() {
-		observationMatrices = new double[rows * cols + 1][rows * cols];
+	private void initializeObservationMatrices() {
+		observationMatrices = new HashMap<int[], double[][]>();
 		
+		for (int matrixRowIndex = 0; matrixRowIndex < rows; matrixRowIndex++) {
+			for (int matrixColIndex = 0; matrixColIndex < cols; matrixColIndex++) {
+				double[][] newMatrix = new double[rows][cols];
+
+				for (int row = 0; row < rows; row++) {
+					for (int col = 0; col < cols; col++) {
+						double distanceSquared = Math.pow(row - matrixRowIndex, 2) + Math.pow(col - matrixColIndex,  2);
+						int distance =  (int) Math.sqrt(distanceSquared);
+						
+						if (distance == 0) { newMatrix[row][col] = 0.1; }
+						else if (distance == 1) { newMatrix[row][col] = 0.05; }
+						else if (distance == 2) { newMatrix[row][col] = 0.025; }
+						else { newMatrix[row][col] = 0.0; }
+					}
+				}
+				
+				observationMatrices.put(new int[] {matrixRowIndex,  matrixColIndex}, newMatrix);
+			}
+			
+		}
+		
+		for (int[] key : observationMatrices.keySet()) {
+			System.out.println(String.format("Matrix for (%d, %d)", key[0], key[1])); 
+			double[][] matrix = observationMatrices.get(key);
+			for (int i = 0; i< matrix.length; i++) {
+			    for (int j = 0; j < matrix[i].length; j++) {
+			        System.out.print(matrix[i][j] + "  ");
+			    }
+			        System.out.println();
+			}
+		}
 		
 	}
-
 	
 	@Override
 	public int getNumRows() {
