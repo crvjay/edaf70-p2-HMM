@@ -22,6 +22,7 @@ public class HMMLocalizer implements EstimatorInterface {
 	private static final int[][] SECONDARY_RING = new int[][] { {-2,-2}, {-2, -1}, {-2, 0}, {-2, 1}, {-2, 2}, {-1, 2}, {0, 2}, {1, 2}, {2, 2}, {2, 1}, {2, 0}, {2, -1}, {2, -2}, {1, -2}, {0, -2}, {-1, -2} };
 	
 	private HashMap<int[], double[][]> observationMatrices;
+	private HashMap<int[], double[][]> nothingMatrices;
 	
 	public HMMLocalizer(int rows, int cols, int heads) {
 		this.rows = rows;
@@ -35,6 +36,7 @@ public class HMMLocalizer implements EstimatorInterface {
 		heading = numGenerator.nextInt(4);
 		
 		initializeObservationMatrices();
+		initializeNothingMatrices();
 	}
 	
 	private void initializeObservationMatrices() {
@@ -55,10 +57,8 @@ public class HMMLocalizer implements EstimatorInterface {
 						else { newMatrix[row][col] = 0.0; }
 					}
 				}
-				
 				observationMatrices.put(new int[] {matrixRowIndex,  matrixColIndex}, newMatrix);
 			}
-			
 		}
 		
 		for (int[] key : observationMatrices.keySet()) {
@@ -71,9 +71,11 @@ public class HMMLocalizer implements EstimatorInterface {
 			        System.out.println();
 			}
 		}
-		
 	}
 	
+	private void initializeNothingMatrices() {
+	}
+
 	@Override
 	public int getNumRows() {
 		return rows;
@@ -205,8 +207,14 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public double getOrXY(int rX, int rY, int x, int y, int h) {
-		// TODO Auto-generated method stub
-		return 0;
+		double distanceSquared = Math.pow(x - rX,  2) + Math.pow(y - rY,  2);
+		int distance = (int) Math.sqrt(distanceSquared);
+		
+		if (distance == 0) return 0.1;
+		if (distance == 1) return 0.05;
+		if (distance == 2) return 0.025;
+		
+		return 0.0;
 	}
 
 	@Override
