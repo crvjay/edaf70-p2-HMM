@@ -12,6 +12,7 @@ import java.util.Map;
 
 public class HMMLocalizer implements EstimatorInterface {
 
+	private int iteration, numCorrect;
 	private int rows, cols, heads;
 	private int heading;
 	private int[] position = new int[2];
@@ -33,6 +34,9 @@ public class HMMLocalizer implements EstimatorInterface {
 	private double[] fVector;
 
 	public HMMLocalizer(int rows, int cols, int heads) {
+		this.iteration = 0;
+		this.numCorrect = 0;
+		
 		this.rows = rows;
 		this.cols = cols;
 		this.heads = heads;
@@ -121,7 +125,7 @@ public class HMMLocalizer implements EstimatorInterface {
 	private double[][] getDiagonalObservationMatrix(int row, int col) {
 		// System.out.println(String.format("Obs matrix for %d, %d", row, col));
 		double[][] obsMatrix = getObservationMatrix(row, col);
-		printMatrix(obsMatrix);
+		// printMatrix(obsMatrix);
 
 		int len = rows * cols * heads;
 		double[][] diagMatrix = new double[len][len];
@@ -245,9 +249,27 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public void update() {
-		System.out.println("Updating");
+		iteration++;
+		
 		updateHeadingAndPosition();
 		updateFVector();
+		
+		double[] prediction = getPrediction();
+		int predictionPercent = (int) (prediction[2] * 100.0);
+		int[] predictionCoords = new int[] {(int) prediction[0], (int) prediction[1]};
+		
+		if (predictionCoords[0] == position[0] && predictionCoords[1] == position[1]) numCorrect++;
+		
+		int percentCorrect = (int) (((double) (numCorrect) / (double) iteration) * 100);
+		
+		System.out.println(String.format("Iteration: %d", iteration));
+		System.out.println(String.format("Position: (%d, %d)", position[0], position[1]));
+		System.out.println(String.format("Prediction: (%d, %d) @ %d%%", predictionCoords[0], predictionCoords[1], predictionPercent));
+		System.out.println(String.format("Euclidean Distance: %f", getEuclideanDistance(position, predictionCoords)));
+		System.out.println(String.format("Manhattan Distance: %d", getManhattanDistance(position, predictionCoords)));
+		System.out.println(String.format("Num Correct: %d", numCorrect));
+		System.out.println(String.format("Percent Correct Predictions: %d%%", percentCorrect));
+		System.out.println();
 	}
 
 	private void updateHeadingAndPosition() {
@@ -269,8 +291,6 @@ public class HMMLocalizer implements EstimatorInterface {
 
 		position[0] = position[0] + HEADINGS[heading][0];
 		position[1] = position[1] + HEADINGS[heading][1];
-
-		System.out.println(String.format("New Position: (%d, %d)", position[0], position[1]));
 	}
 
 	private void updateFVector() {
@@ -280,6 +300,9 @@ public class HMMLocalizer implements EstimatorInterface {
 		// printMatrix(observationMatrix);
 
 		double[][] diagObservationMatrix = getDiagonalObservationMatrix(currentReading[0], currentReading[1]);
+		// System.out.println("DIAG");
+		// printMatrix(diagObservationMatrix);
+
 		double[][] transposedTransitionMatrix = transitionMatrix;
 
 		double[][] multipliedTranspose = multiplyMatrix(diagObservationMatrix, transposedTransitionMatrix);
@@ -395,7 +418,41 @@ public class HMMLocalizer implements EstimatorInterface {
 
 		return summedProb;
 	}
+	
+	private double[] getPrediction() {
+		double[][] summedProbs = getSummedProbs();
+		double maxProb = 0.0;
+		int maxRow = 0, maxCol = 0;
+		
+//		printMatrix(summedProbs);
+		
+		for (int row = 0; row < rows; row++) {
+			for (int col = 0; col < cols; col++) {
+				if (summedProbs[row][col] > maxProb) {
+					maxProb = summedProbs[row][col];
+					maxRow = row;
+					maxCol = col;
+				}
+			}
+		}
+		
+		return new double[] {maxRow, maxCol, maxProb};
+	}
 
+	private double[][] getSummedProbs() {
+		double[][] summedProbs = new double[rows][cols];
+			
+		for (int row = 0; row < rows; row++) {
+			for (int col = 0; col < cols; col++) {
+				double summedProb = 0.0;
+				int index = getIndexFromRowColHead(row, col, 0);
+				summedProbs[row][col] = getCurrentProb(row, col);
+			}
+		}
+		
+		return summedProbs;
+	}
+	
 	@Override
 	public double getOrXY(int rX, int rY, int x, int y, int h) {
 		double distanceSquared = Math.pow(x - rX, 2) + Math.pow(y - rY, 2);
@@ -409,6 +466,16 @@ public class HMMLocalizer implements EstimatorInterface {
 			return 0.025;
 
 		return 0.0;
+	}
+	
+	private double getEuclideanDistance(int[] a, int[] b) {
+		double distanceSquared = Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2);
+		double distance = Math.sqrt(distanceSquared);
+		return distance;		
+	}
+	
+	private int getManhattanDistance(int[] a, int[] b) {
+		return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]));
 	}
 
 	@Override
