@@ -7,13 +7,8 @@ import java.awt.BorderLayout;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-
-import org.ejml.data.Matrix;
-import org.ejml.simple.SimpleMatrix;
-import org.ejml.data.DMatrix;
-import org.ejml.data.DMatrixRMaj;
-import org.ejml.data.DenseD2Matrix64F;
 
 public class HMMLocalizer implements EstimatorInterface {
 
@@ -31,12 +26,11 @@ public class HMMLocalizer implements EstimatorInterface {
 			{ -1, 2 }, { 0, 2 }, { 1, 2 }, { 2, 2 }, { 2, 1 }, { 2, 0 }, { 2, -1 }, { 2, -2 }, { 1, -2 }, { 0, -2 },
 			{ -1, -2 } };
 
-	private HashMap<int[], double[][]> observationMatrices;
-	private HashMap<int[], double[][]> nothingMatrices;
+	private HashMap<List<Integer>, double[][]> observationMatrices;
+	// private HashMap<int[], double[][]> nothingMatrices;
 
 	private double[][] transitionMatrix;
-	private double[] hmmArray;
-	private double[][] hmmMatrix;
+	private double[] fVector;
 
 	public HMMLocalizer(int rows, int cols, int heads) {
 		this.rows = rows;
@@ -50,12 +44,12 @@ public class HMMLocalizer implements EstimatorInterface {
 		heading = numGenerator.nextInt(4);
 
 		initializeObservationMatrices();
-		initializeHMM();
+		initializeFVector();
 		initializeTransitionMatrix();
 	}
 
 	private void initializeObservationMatrices() {
-		observationMatrices = new HashMap<int[], double[][]>();
+		observationMatrices = new HashMap<List<Integer>, double[][]>();
 
 		for (int matrixRowIndex = 0; matrixRowIndex < rows; matrixRowIndex++) {
 			for (int matrixColIndex = 0; matrixColIndex < cols; matrixColIndex++) {
@@ -77,26 +71,105 @@ public class HMMLocalizer implements EstimatorInterface {
 						}
 					}
 				}
-				observationMatrices.put(new int[] { matrixRowIndex, matrixColIndex }, newMatrix);
+
+				List<Integer> readingCoord = new ArrayList<Integer>();
+				readingCoord.add(matrixRowIndex);
+				readingCoord.add(matrixColIndex);
+				observationMatrices.put(readingCoord, newMatrix);
 			}
 		}
 
-		// for (int[] key : observationMatrices.keySet()) {
-		// System.out.println(String.format("Matrix for (%d, %d)", key[0], key[1]));
-		// double[][] matrix = observationMatrices.get(key);
-		// for (int i = 0; i< matrix.length; i++) {
-		// for (int j = 0; j < matrix[i].length; j++) {
-		// System.out.print(matrix[i][j] + " ");
-		// }
-		// System.out.println();
-		// }
-		// }
+		List<Integer> nothingCoord = new ArrayList<Integer>();
+		nothingCoord.add(-1);
+		nothingCoord.add(-1);
+		observationMatrices.put(nothingCoord, getNothingMatrix());
+
+		for (List<Integer> key : observationMatrices.keySet()) {
+			// System.out.println(String.format("Matrix for (%d, %d)", key.get(0),
+			// key.get(1)));
+			double[][] matrix = observationMatrices.get(key);
+			for (int i = 0; i < matrix.length; i++) {
+				for (int j = 0; j < matrix[i].length; j++) {
+					// System.out.print(matrix[i][j] + " ");
+				}
+				// System.out.println();
+			}
+		}
 	}
 
-	private void initializeHMM() {
-		hmmArray = new double[rows * cols * heads];
-		hmmArray[position[0] * rows + position[1] * cols + heading] = 1;
-		hmmMatrix = new double[rows][cols];
+	private double[][] getNothingMatrix() {
+		double[][] nothingMatrix = new double[rows][cols];
+
+		for (int row = 0; row < rows; row++) {
+			for (int col = 0; col < cols; col++) {
+				double prob = 1.0 - 0.1 - 0.05 * getPrimaryRingSize(row, col) - 0.025 * getPrimaryRingSize(row, col);
+				nothingMatrix[row][col] = prob;
+			}
+		}
+
+		return nothingMatrix;
+	}
+
+	private double[][] getObservationMatrix(int row, int col) {
+		List<Integer> readingCoord = new ArrayList<Integer>();
+		readingCoord.add(row);
+		readingCoord.add(col);
+		double[][] matrix = observationMatrices.get(readingCoord);
+		return matrix;
+	}
+
+	private double[][] getDiagonalObservationMatrix(int row, int col) {
+		// System.out.println(String.format("Obs matrix for %d, %d", row, col));
+		double[][] obsMatrix = getObservationMatrix(row, col);
+		printMatrix(obsMatrix);
+
+		int len = rows * cols * heads;
+		double[][] diagMatrix = new double[len][len];
+
+		for (int i = 0; i < len; i++) {
+			for (int j = 0; j < len; j++) {
+				diagMatrix[i][j] = 0.0;
+			}
+		}
+
+		for (int i = 0; i < len; i++) {
+			int[] vals = getValsFromIndex(i);
+			diagMatrix[i][i] = obsMatrix[vals[0]][vals[1]];
+		}
+
+		return diagMatrix;
+	}
+
+	private int getPrimaryRingSize(int row, int col) {
+		int count = 0;
+		for (int[] direction : PRIMARY_RING) {
+			int newRow = row + direction[0];
+			int newCol = col + direction[1];
+			if (inBounds(newRow, newCol))
+				count++;
+		}
+
+		return count;
+	}
+
+	private int getSecondaryRingSize(int row, int col) {
+		int count = 0;
+		for (int[] direction : SECONDARY_RING) {
+			int newRow = row + direction[0];
+			int newCol = col + direction[1];
+			if (inBounds(newRow, newCol))
+				count++;
+		}
+
+		return count;
+	}
+
+	private void initializeFVector() {
+		fVector = new double[rows * cols * heads];
+		double initialProb = 1.0 / (rows * cols * heads);
+		for (int i = 0; i < fVector.length; i++) {
+			fVector[i] = initialProb;
+		}
 	}
 
 	private void initializeTransitionMatrix() {
@@ -111,7 +184,10 @@ public class HMMLocalizer implements EstimatorInterface {
 			}
 		}
 
+		// System.out.println("Transition Matrix:");
 		// printMatrix(transitionMatrix);
+
+		transitionMatrix = transposeMatrix(transitionMatrix);
 	}
 
 	private void printMatrix(double[][] array) {
@@ -121,25 +197,35 @@ public class HMMLocalizer implements EstimatorInterface {
 			}
 			System.out.println();
 		}
+		System.out.println();
 	}
 
-	// private int getIndexFromRowColHead(int row, int col, int head) {
-	// int start = row * (rows * heads);
-	// start += col * heads;
-	// start += head;
-	// return start;
-	// }
-	//
+	private void printVector(double[] array) {
+		System.out.println();
+		for (int i = 0; i < array.length; i++) {
+			System.out.print(array[i] + " ");
+		}
+		System.out.println();
+	}
+
 	private int[] getValsFromIndex(int index) {
 		int head = index % heads;
+
 		index -= head;
 
 		int col = (index % (rows * heads)) / heads;
 		index -= (col * heads);
 
-		int row = index / rows;
+		int row = index / (rows * heads);
 
 		return new int[] { row, col, head };
+	}
+
+	private int getIndexFromRowColHead(int row, int col, int head) {
+		int start = row * (rows * heads);
+		start += col * heads;
+		start += head;
+		return start;
 	}
 
 	@Override
@@ -161,7 +247,7 @@ public class HMMLocalizer implements EstimatorInterface {
 	public void update() {
 		System.out.println("Updating");
 		updateHeadingAndPosition();
-		updateHmmMatrix();
+		updateFVector();
 	}
 
 	private void updateHeadingAndPosition() {
@@ -187,26 +273,31 @@ public class HMMLocalizer implements EstimatorInterface {
 		System.out.println(String.format("New Position: (%d, %d)", position[0], position[1]));
 	}
 
-	private void updateHmmMatrix() {
-		double[][] transposedTransitionMatrix = transposeMatrix(transitionMatrix);
-		double[][] diagMatrix = getDiagonalMatrix();
-		double[][] multipliedTranspose = multiply(diagMatrix, transposedTransitionMatrix);
-		double[] newHmm = multiply(multipliedTranspose, hmmArray);
-		hmmArray = newHmm;
-		
-	}
+	private void updateFVector() {
+		int[] currentReading = getCurrentReading();
+		if (currentReading == null)
+			currentReading = new int[] { -1, -1 };
+		// printMatrix(observationMatrix);
 
-	private double[][] getDiagonalMatrix() {
-		int len = rows * cols * heads;
-		double[][] diagMatrix = new double[len][len];
-		for (int i = 0; i < len; i++) {
-			for (int j = 0; j < len; j++) {
-				if (i == j)
-					diagMatrix[i][j] = 1;
-			}
+		double[][] diagObservationMatrix = getDiagonalObservationMatrix(currentReading[0], currentReading[1]);
+		double[][] transposedTransitionMatrix = transitionMatrix;
+
+		double[][] multipliedTranspose = multiplyMatrix(diagObservationMatrix, transposedTransitionMatrix);
+
+		double[] newFVector = multiplyMatrix(multipliedTranspose, fVector);
+
+		double sum = 0.0;
+		for (int i = 0; i < newFVector.length; i++) {
+			sum += newFVector[i];
+		}
+		for (int i = 0; i < newFVector.length; i++) {
+			newFVector[i] = newFVector[i] / sum;
 		}
 
-		return diagMatrix;
+		fVector = newFVector;
+
+		// System.out.println("NewFVector");
+		// printVector(fVector);
 	}
 
 	private HashMap<Integer, Double> getProbMap(int row, int col, int head) {
@@ -295,8 +386,14 @@ public class HMMLocalizer implements EstimatorInterface {
 
 	@Override
 	public double getCurrentProb(int x, int y) {
-		return 0.0;
-		// return hmmMatrix[x][y];
+		double summedProb = 0.0;
+		int index = getIndexFromRowColHead(x, y, 0);
+
+		for (int i = 0; i < 4; i++) {
+			summedProb += fVector[index + i];
+		}
+
+		return summedProb;
 	}
 
 	@Override
@@ -337,10 +434,6 @@ public class HMMLocalizer implements EstimatorInterface {
 		return row >= 0 && row < rows && col >= 0 && col < cols;
 	}
 
-	private boolean newLocationInBounds(int row, int col, int dRow, int dCol) {
-		return inBounds(row + dRow, col + dCol);
-	}
-
 	// The following 3 matrix methods included under fair use guidelines
 	// to prevent needing to use a matrix library
 	// https://introcs.cs.princeton.edu/java/22library/Matrix.java.html
@@ -357,7 +450,7 @@ public class HMMLocalizer implements EstimatorInterface {
 	}
 
 	// From https://introcs.cs.princeton.edu/java/22library/Matrix.java.html
-	public static double[][] multiply(double[][] a, double[][] b) {
+	public static double[][] multiplyMatrix(double[][] a, double[][] b) {
 		int m1 = a.length;
 		int n1 = a[0].length;
 		int m2 = b.length;
@@ -373,7 +466,7 @@ public class HMMLocalizer implements EstimatorInterface {
 	}
 
 	// From https://introcs.cs.princeton.edu/java/22library/Matrix.java.html
-	public static double[] multiply(double[][] a, double[] x) {
+	public static double[] multiplyMatrix(double[][] a, double[] x) {
 		int m = a.length;
 		int n = a[0].length;
 		if (x.length != n)
