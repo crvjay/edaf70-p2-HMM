@@ -102,7 +102,7 @@ public class HMMLocalizer implements EstimatorInterface {
 
 		for (int row = 0; row < rows; row++) {
 			for (int col = 0; col < cols; col++) {
-				double prob = 1.0 - 0.1 - 0.05 * getPrimaryRingSize(row, col) - 0.025 * getPrimaryRingSize(row, col);
+				double prob = 1.0 - 0.1 - 0.05 * getPrimaryRingSize(row, col) - 0.025 * getSecondaryRingSize(row, col);
 				nothingMatrix[row][col] = prob;
 			}
 		}
