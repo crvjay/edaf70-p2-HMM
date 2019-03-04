@@ -110,7 +110,7 @@ public class HMMLocalizer implements EstimatorInterface {
 				nothingMatrix[row][col] = prob;
 			}
 		}
-
+		
 		return nothingMatrix;
 	}
 
@@ -258,7 +258,9 @@ public class HMMLocalizer implements EstimatorInterface {
 		int predictionPercent = (int) (prediction[2] * 100.0);
 		int[] predictionCoords = new int[] {(int) prediction[0], (int) prediction[1]};
 		
-		if (predictionCoords[0] == position[0] && predictionCoords[1] == position[1]) numCorrect++;
+		if (predictionCoords[0] == position[0] && predictionCoords[1] == position[1]) {
+			numCorrect++;
+		}
 		
 		int percentCorrect = (int) (((double) (numCorrect) / (double) iteration) * 100);
 		
@@ -269,6 +271,7 @@ public class HMMLocalizer implements EstimatorInterface {
 		System.out.println(String.format("Manhattan Distance: %d", getManhattanDistance(position, predictionCoords)));
 		System.out.println(String.format("Num Correct: %d", numCorrect));
 		System.out.println(String.format("Percent Correct Predictions: %d%%", percentCorrect));
+		
 		System.out.println();
 	}
 
@@ -454,7 +457,11 @@ public class HMMLocalizer implements EstimatorInterface {
 	}
 	
 	@Override
-	public double getOrXY(int rX, int rY, int x, int y, int h) {
+	public double getOrXY(int rX, int rY, int x, int y, int h) {		
+		if (rX == -1 && rY == -1) {
+			return getObservationMatrix(-1, -1)[x][y];
+		}
+		
 		double distanceSquared = Math.pow(x - rX, 2) + Math.pow(y - rY, 2);
 		int distance = (int) Math.sqrt(distanceSquared);
 
