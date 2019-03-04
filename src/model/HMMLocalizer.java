@@ -28,7 +28,6 @@ public class HMMLocalizer implements EstimatorInterface {
 			{ -1, -2 } };
 
 	private HashMap<List<Integer>, double[][]> observationMatrices;
-	// private HashMap<int[], double[][]> nothingMatrices;
 
 	private double[][] transitionMatrix;
 	private double[] fVector;
